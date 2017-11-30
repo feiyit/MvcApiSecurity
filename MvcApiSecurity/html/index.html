@@ -1,0 +1,91 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>测试API</title>
+    <script src="/content/js/mui.min.js"></script>
+    <script src="/content/js/jquery.min.js"></script>
+    <script src="/content/js/md5.js"></script>
+    <script src="/content/js/ajax.js"></script>
+    <link href="/Content/bootstrap.min.css" rel="stylesheet"/>
+    <script type="text/javascript" charset="utf-8">
+      	mui.init();
+        var sign = getSign({ ID: 1, Name: 'testName', Count: 10, Price: 58.00 }); //alert(sign);
+      	//console.log(logData(sign));
+      	//console.log(generateMixed(10));
+    </script>
+</head>
+<body class="col-sm-12 body">
+    <h4 style="text-align:center; padding:10px 0">API接口安全策略</h4>
+	<div><button type="button" id="getToken" class="btn btn-default">获取Token</button></div>
+	<div style="padding: 15px;word-wrap:break-word" id="token"></div>
+	<div><button type="button" id="testapi" class="btn btn-default">测试安全调接口</button></div>
+    <div id="signhtml" style="padding: 15px;word-wrap:break-word"></div>
+    <hr />
+	<div style="padding: 15px;word-wrap:break-word" id="resulthtml"></div>
+	
+	<script type="text/javascript">
+        var token = '';
+		mui(".body").on('tap','#getToken',function(){
+            $.ajax('/api/TokenService/GetToken?appkey=' + app_key, {
+				data: {'staffId':'10000'},
+				dataType: 'json', //服务器返回json格式数据
+				type: 'get', //HTTP请求类型
+				timeout: timeouts, //超时时间设置为10秒；
+				beforeSend: function(request) {
+                    request.setRequestHeader("appkey", app_key);
+                    request.setRequestHeader("timestamp", getTimestamp());
+                    request.setRequestHeader("nonce", generateMixed(10));
+                },
+                success: function (res) {
+                    token = res.data.signtoken;
+                    $("#token").html(JSON.stringify(res));
+				},
+				error: function(xhr, type, errorThrown) {
+					if(type == 'timeout') {
+						mui.toast('连接超时，请稍后重试！');
+					} else if(type == 'error') {
+						mui.toast('连接异常，请稍后重试！');
+					}
+				}
+			});
+        });
+        //测试api
+        $("#testapi").on('tap', function () {
+            if (!token) {
+                alert('需要先获得Token'); return; }
+            var datas = { ID: 1, Name: 'testName', Count: 10, Price: 58.00 };
+            var sign = getSign(datas),          //参数拼接+signKey
+                timestamp = getTimestamp(),         //13位时间戳
+                codes = generateMixed(10);          //10位随机字符串 数字+字母
+            var signStr = token + timestamp + codes + sign; //拼接签名数据
+            $.ajax('/api/product/AddProudct', {
+                data: datas,
+                dataType: 'json', //服务器返回json格式数据
+                type: 'post', //HTTP请求类型
+                timeout: timeouts, //超时时间设置为10秒；
+                beforeSend: function (request) {
+                    request.setRequestHeader("appkey", app_key);
+                    request.setRequestHeader("timestamp", timestamp);
+                    request.setRequestHeader("nonce", codes);
+                    request.setRequestHeader("signKey", signKey);
+                    request.setRequestHeader("signature", hex_md5(signStr));
+                },
+                success: function (res) {
+                    $("#resulthtml").html(JSON.stringify(res));
+                },
+                error: function (xhr, type, errorThrown) {
+                    if (type == 'timeout') {
+                        mui.toast('连接超时，请稍后重试！');
+                    } else if (type == 'error') {
+                        mui.toast('连接异常，请稍后重试！');
+                    }
+                }
+            });
+        });
+
+
+	</script>
+</body>
+</html>
